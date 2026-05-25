@@ -19,6 +19,10 @@ import shared  # noqa: E402
 
 
 def cmd_add(args: argparse.Namespace) -> None:
+    if not shared.validate_post_id(args.post_id):
+        shared.emit_error("Invalid post id.", code="bad_post_id")
+        return
+
     cfg = shared.load_config()
     repo = cfg["repo"]
 

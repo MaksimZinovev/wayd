@@ -63,6 +63,13 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         if parsed["deleted"] or parsed["vibe"] is None:
             continue
         vibe = shared.vibe_by_slug(parsed["vibe"])
+        # NOTE: `gh issue list --json comments` caps the comments array at
+        # 100 per issue. For posts with more, reply_count maxes out at 100.
+        # The orchestrator should render "100+" when reply_count_capped is
+        # true. Getting the true count would require a per-issue REST call,
+        # which is too costly for a 200-post scroll pool.
+        comments = raw_post.get("comments", []) or []
+        reply_count = len(comments)
         posts.append({
             "id": raw_post["number"],
             "author": author,
@@ -71,14 +78,19 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             "text": parsed["text"],
             "created_at": raw_post["createdAt"],
             "created_relative": shared.relative_time(raw_post["createdAt"]),
-            "reactions": _summarize_reactions(raw_post.get("reactionGroups", [])),
-            "reply_count": len(raw_post.get("comments", []) or []),
+            "reactions": shared.summarize_reactions(raw_post.get("reactionGroups", [])),
+            "reply_count": reply_count,
+            "reply_count_capped": reply_count >= 100,
         })
 
     shared.emit({"ok": True, "posts": posts, "count": len(posts)})
 
 
 def cmd_thread(args: argparse.Namespace) -> None:
+    if not shared.validate_post_id(args.post_id):
+        shared.emit_error("Invalid post id.", code="bad_post_id")
+        return
+
     cfg = shared.load_config()
     repo = cfg["repo"]
 
@@ -122,38 +134,9 @@ def cmd_thread(args: argparse.Namespace) -> None:
         "text": parsed["text"],
         "created_at": raw["createdAt"],
         "created_relative": shared.relative_time(raw["createdAt"]),
-        "reactions": _summarize_reactions(raw.get("reactionGroups", [])),
+        "reactions": shared.summarize_reactions(raw.get("reactionGroups", [])),
     }
     shared.emit({"ok": True, "post": post, "comments": comments})
-
-
-def _summarize_reactions(groups: list[dict]) -> list[dict]:
-    """Turn gh's reactionGroups into [{emoji, count}, ...] using the config mapping."""
-    cfg = shared.load_config()
-    # Build api_name -> emoji map from config
-    api_to_emoji = {r["api_name"].lower(): r["emoji"] for r in cfg["reactions"]}
-    # gh returns groups with `content` like "THUMBS_UP", "LAUGH", uppercase enum names
-    # We normalize to the lowercase api_name.
-    enum_to_api = {
-        "THUMBS_UP": "+1",
-        "THUMBS_DOWN": "-1",
-        "LAUGH": "laugh",
-        "HOORAY": "hooray",
-        "CONFUSED": "confused",
-        "HEART": "heart",
-        "ROCKET": "rocket",
-        "EYES": "eyes",
-    }
-    out = []
-    for g in groups or []:
-        content = g.get("content", "")
-        count = g.get("users", {}).get("totalCount", 0)
-        if count == 0:
-            continue
-        api = enum_to_api.get(content)
-        if api and api in api_to_emoji:
-            out.append({"emoji": api_to_emoji[api], "count": count})
-    return out
 
 
 def main() -> None:

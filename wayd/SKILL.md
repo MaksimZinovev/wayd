@@ -129,7 +129,9 @@ The setup flow:
    > - **Scroll a random feed** of other people's vibes, react with emojis, reply, or skip.
    > - **Check your inbox** for replies on your own posts.
    >
-   > You'll be posting under your real GitHub handle (`@<username>`). Quick ground rules: no harassment, no NSFW, no spam. Full Code of Conduct: https://github.com/<owner>/wayd/blob/main/CODE_OF_CONDUCT.md
+   > You'll be posting under your real GitHub handle (`@<username>`). Quick ground rules: no harassment, no NSFW, no spam. Full Code of Conduct: https://github.com/ferdinandobons/wayd/blob/main/CODE_OF_CONDUCT.md
+   >
+   > (If you've forked WAYD to a different host repo, substitute the URL with the value of `repo:` from `wayd/config.yml`.)
    >
    > Accept the Code of Conduct to start? [y/n]"
 
@@ -148,7 +150,7 @@ The setup flow:
 
 ## The compose flow (`/wayd post`)
 
-Run `scripts/post.py compose` and follow the conversational flow. The script handles the actual GitHub call, you orchestrate the conversation.
+Orchestrate the compose flow yourself, walking the user through these steps. The Python scripts handle individual mechanics, you sequence them. There is no single "compose" subcommand: call `scripts/post.py check_rate_limit` first to validate, then `scripts/post.py publish --vibe <slug> --text <text>` at the end.
 
 1. **Ask for vibe.** Show the 8 vibes as a numbered menu:
    ```
@@ -220,9 +222,11 @@ This is the core experience. Treat it as a tight loop: show a post → wait for 
 5. **Wait for input.** Handle each variant:
    - `n` / `next` / `skip` / silent enter → record the post ID into `recently_seen`, go to step 2.
    - An emoji or `react X` → call `scripts/react.py add --post-id <id> --emoji <e>`, show "✓ reacted", record as seen, go to step 2.
-   - `c: <text>` / `comment: <text>` / `reply: <text>` → call `scripts/comment.py post --post-id <id> --text <text>`. Show "✓ replied", record as seen, go to step 2.
+   - `c: <text>` / `comment: <text>` / `reply: <text>` → validate length client-side: if over 1000 chars, say "Replies share the 1000-char limit with posts. Trim by N chars." and re-prompt. Otherwise call `scripts/comment.py post --post-id <id> --text <text>`. Show "✓ replied", record as seen, go to step 2.
    - `t` / `open thread` / "show replies" → call `scripts/scroll.py thread --post-id <id>` and render all comments under the post, then re-show the same action menu (don't advance).
    - `q` / `quit` / `bye` / `exit` → exit with a friendly sign-off, persist `recently_seen`.
+
+**Note on `reply_count_capped`**: the `fetch` payload includes a `reply_count_capped` boolean per post. When true, the post has 100 or more replies but GitHub's batch API truncates at 100. Render the count as `💬 100+ replies` instead of `💬 100 replies` so the user knows there's more.
 
 6. **When the pool is exhausted** (every post in the last 200 has been seen): "That's all the recent vibes. The scroll cache resets in a few minutes: or try `/wayd post` to add your own."
 
@@ -251,7 +255,7 @@ This is the core experience. Treat it as a tight loop: show a post → wait for 
 
 4. On `r`, ask "Which one?" and let the user pick by number, then post a reply via `scripts/comment.py post`.
 
-5. On `n` or `q`, write the current timestamp to `last_check_ts`.
+5. On `n` or `q`, call `scripts/inbox.py mark_read` to update the last-read timestamp. Don't write to `last-check.json` directly: the script owns that file.
 
 ---
 

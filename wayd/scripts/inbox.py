@@ -95,7 +95,7 @@ def cmd_fetch(_: argparse.Namespace) -> None:
             "vibe_emoji": vibe["emoji"] if vibe else "",
             "text": parsed["text"],
             "created_relative": shared.relative_time(raw_post["createdAt"]),
-            "reactions": _summarize_reactions(raw_post.get("reactionGroups", [])),
+            "reactions": shared.summarize_reactions(raw_post.get("reactionGroups", [])),
             "new_replies": new_replies,
             "total_replies": len(comments),
         })
@@ -121,34 +121,6 @@ def _title_preview(text: str) -> str:
     if len(first) > 60:
         first = first[:57] + "..."
     return first
-
-
-def _summarize_reactions(groups: list[dict]) -> list[dict]:
-    # Duplicated from scroll.py rather than importing to keep each script
-    # standalone: keeps the dependency graph readable. If this grows,
-    # promote to shared.py.
-    cfg = shared.load_config()
-    api_to_emoji = {r["api_name"].lower(): r["emoji"] for r in cfg["reactions"]}
-    enum_to_api = {
-        "THUMBS_UP": "+1",
-        "THUMBS_DOWN": "-1",
-        "LAUGH": "laugh",
-        "HOORAY": "hooray",
-        "CONFUSED": "confused",
-        "HEART": "heart",
-        "ROCKET": "rocket",
-        "EYES": "eyes",
-    }
-    out = []
-    for g in groups or []:
-        content = g.get("content", "")
-        count = g.get("users", {}).get("totalCount", 0)
-        if count == 0:
-            continue
-        api = enum_to_api.get(content)
-        if api and api in api_to_emoji:
-            out.append({"emoji": api_to_emoji[api], "count": count})
-    return out
 
 
 def main() -> None:

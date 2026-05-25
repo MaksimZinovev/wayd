@@ -15,6 +15,10 @@ import shared  # noqa: E402
 
 
 def cmd_post(args: argparse.Namespace) -> None:
+    if not shared.validate_post_id(args.post_id):
+        shared.emit_error("Invalid post id.", code="bad_post_id")
+        return
+
     cfg = shared.load_config()
     repo = cfg["repo"]
     max_chars = cfg["limits"]["max_chars"]
@@ -25,7 +29,7 @@ def cmd_post(args: argparse.Namespace) -> None:
         return
     if len(text) > max_chars:
         shared.emit_error(
-            f"Too long by {len(text) - max_chars} chars. Trim it down.",
+            f"Comments have the same {max_chars}-char limit as posts. Trim by {len(text) - max_chars}.",
             code="too_long",
         )
         return

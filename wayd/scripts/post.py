@@ -28,7 +28,8 @@ def _check_rate_limit_internal() -> tuple[bool, int, int]:
     """Internal helper used by both the standalone check and publish.
 
     Returns (is_within_limit, remaining_slots, retry_in_min).
-    Side effect: prunes stale entries from recent_posts.
+    Side effect: prunes stale entries from recent_posts AND expired entries
+    from editable_until (so neither structure grows without bound).
 
     Splitting check from emit() lets publish() reuse the logic without
     racing on JSON output. The check_rate_limit subcommand wraps this.
@@ -38,14 +39,24 @@ def _check_rate_limit_internal() -> tuple[bool, int, int]:
     state = shared.load_last_check()
     recent = state.get("recent_posts", [])
 
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=1)
     fresh = [
         r for r in recent
         if datetime.fromisoformat(r["ts"].replace("Z", "+00:00")) > cutoff
     ]
 
-    # Prune stale entries while we're here
+    # Prune stale rate-limit entries
     state["recent_posts"] = fresh
+
+    # Prune expired edit windows. editable_until grows once per post; without
+    # this it accumulates forever and bloats last-check.json for heavy users.
+    editable = state.get("editable_until", {})
+    state["editable_until"] = {
+        pid: ts for pid, ts in editable.items()
+        if datetime.fromisoformat(ts.replace("Z", "+00:00")) > now
+    }
+
     shared.save_last_check(state)
 
     if len(fresh) >= limit:
@@ -53,7 +64,7 @@ def _check_rate_limit_internal() -> tuple[bool, int, int]:
             datetime.fromisoformat(r["ts"].replace("Z", "+00:00")) for r in fresh
         )
         retry_at = oldest + timedelta(hours=1)
-        retry_in_min = max(1, int((retry_at - datetime.now(timezone.utc)).total_seconds() / 60))
+        retry_in_min = max(1, int((retry_at - now).total_seconds() / 60))
         return (False, 0, retry_in_min)
 
     return (True, limit - len(fresh), 0)
@@ -120,7 +131,10 @@ def cmd_publish(args: argparse.Namespace) -> None:
     post_id = int(url.rsplit("/", 1)[-1])
     ts = shared.now_iso()
 
-    # Track in rate-limit log and editable window
+    # Track in rate-limit log and editable window. We deliberately don't
+    # return the URL to the caller: SKILL.md's backend-opacity principle
+    # forbids exposing GitHub-native artifacts to the user. The orchestrator
+    # has post_id, which is all it needs for edit/delete.
     state = shared.load_last_check()
     state.setdefault("recent_posts", []).append({"id": post_id, "ts": ts})
     edit_window_sec = cfg["limits"]["edit_window_sec"]
@@ -128,10 +142,14 @@ def cmd_publish(args: argparse.Namespace) -> None:
     state.setdefault("editable_until", {})[str(post_id)] = editable_until
     shared.save_last_check(state)
 
-    shared.emit({"ok": True, "post_id": post_id, "url": url, "editable_until": editable_until})
+    shared.emit({"ok": True, "post_id": post_id})
 
 
 def cmd_edit(args: argparse.Namespace) -> None:
+    if not shared.validate_post_id(args.post_id):
+        shared.emit_error("Invalid post id.", code="bad_post_id")
+        return
+
     cfg = shared.load_config()
     repo = cfg["repo"]
     max_chars = cfg["limits"]["max_chars"]
@@ -195,11 +213,19 @@ def cmd_edit(args: argparse.Namespace) -> None:
 
 
 def cmd_soft_delete(args: argparse.Namespace) -> None:
+    if not shared.validate_post_id(args.post_id):
+        shared.emit_error("Invalid post id.", code="bad_post_id")
+        return
+
     cfg = shared.load_config()
     repo = cfg["repo"]
     marker_version = cfg["marker_version"]
 
-    # Verify the post is ours (defense-in-depth; the caller should also check)
+    # Fetch the post's author and verify ownership against the LIVE
+    # authenticated identity (gh api user), not the cached identity.json.
+    # The local file is user-writable and shouldn't be trusted as a
+    # security boundary: someone editing it to "username": "victim" must
+    # not be able to delete victim's posts.
     try:
         raw = shared.gh(
             ["issue", "view", str(args.post_id), "--repo", repo, "--json", "author"],
@@ -209,37 +235,66 @@ def cmd_soft_delete(args: argparse.Namespace) -> None:
         shared.emit_error(shared.translate_gh_error(e), code="gh_failed")
         return
 
-    identity = shared.load_identity()
-    if raw["author"]["login"] != identity.get("username"):
+    try:
+        live_user = shared.gh_current_user()
+    except shared.GhError as e:
+        shared.emit_error(shared.translate_gh_error(e), code="gh_failed")
+        return
+
+    if raw["author"]["login"] != live_user:
         shared.emit_error(
             "You can only delete your own posts.",
             code="not_your_post",
         )
         return
 
+    # Atomic-ish soft-delete: three steps, each tracked separately. A
+    # partial failure logs the gap so the orchestrator can tell the user
+    # what actually happened. We always *try* every step (no early return
+    # mid-flight) because each step is independent at the GitHub side.
     new_body = f"[deleted by author] <!-- wayd:{marker_version} deleted=true -->"
-    try:
-        shared.gh(
-            [
-                "issue", "edit", str(args.post_id),
-                "--repo", repo,
-                "--body", new_body,
-            ]
-        )
-        shared.gh(["issue", "close", str(args.post_id), "--repo", repo])
-        # Lock the conversation so no new comments
-        shared.gh(
-            [
-                "api", "-X", "PUT",
-                f"repos/{repo}/issues/{args.post_id}/lock",
-                "-f", "lock_reason=resolved",
-            ]
-        )
-    except shared.GhError as e:
-        shared.emit_error(shared.translate_gh_error(e), code="gh_failed")
+
+    steps: list[tuple[str, list[str]]] = [
+        ("edit_body", ["issue", "edit", str(args.post_id), "--repo", repo, "--body", new_body]),
+        ("close", ["issue", "close", str(args.post_id), "--repo", repo]),
+        ("lock", [
+            "api", "-X", "PUT",
+            f"repos/{repo}/issues/{args.post_id}/lock",
+            "-f", "lock_reason=resolved",
+        ]),
+    ]
+
+    failed_steps: list[str] = []
+    for name, cmd in steps:
+        try:
+            shared.gh(cmd)
+        except shared.GhError as e:
+            failed_steps.append(name)
+            shared.log_error(f"soft_delete step {name!r} on post #{args.post_id} failed: {e}")
+
+    if not failed_steps:
+        shared.emit({"ok": True, "post_id": args.post_id})
         return
 
-    shared.emit({"ok": True, "post_id": args.post_id})
+    # Tailor the message: "body" failing is the worst (post still visible);
+    # "close"/"lock" failing means the post disappears from scroll but
+    # could still receive comments.
+    if "edit_body" in failed_steps:
+        shared.emit({
+            "ok": False,
+            "code": "partial_delete",
+            "failed_steps": failed_steps,
+            "message": "Couldn't fully delete your post. Try again in a moment.",
+        })
+        return
+
+    shared.emit({
+        "ok": True,
+        "code": "partial_delete",
+        "post_id": args.post_id,
+        "failed_steps": failed_steps,
+        "message": "Your post was removed from scroll, but cleanup didn't fully complete. New replies may still appear in the thread.",
+    })
 
 
 def main() -> None:

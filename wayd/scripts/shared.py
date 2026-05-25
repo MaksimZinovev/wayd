@@ -44,35 +44,22 @@ _config_cache: dict[str, Any] | None = None
 
 
 def load_config() -> dict[str, Any]:
-    """Load wayd/config.yml. Cached after first call."""
+    """Load wayd/config.yml. Cached after first call.
+
+    PyYAML is required; we don't ship a fallback parser because any
+    half-correct YAML implementation is worse than failing loudly.
+    """
     global _config_cache
     if _config_cache is not None:
         return _config_cache
 
+    if yaml is None:
+        raise RuntimeError(
+            "PyYAML is not installed. Run: pip install pyyaml"
+        )
     raw = CONFIG_PATH.read_text(encoding="utf-8")
-    if yaml is not None:
-        _config_cache = yaml.safe_load(raw)
-    else:
-        # Minimal YAML fallback parser for our specific config shape.
-        # Real YAML is preferred; this is purely a "don't crash if PyYAML
-        # isn't installed" safety net.
-        _config_cache = _naive_yaml(raw)
+    _config_cache = yaml.safe_load(raw)
     return _config_cache
-
-
-def _naive_yaml(text: str) -> dict[str, Any]:
-    """Tiny YAML-ish parser for the config shape we actually use.
-
-    Supports: top-level scalars, top-level lists of dicts, nested dicts.
-    Doesn't try to be general: if PyYAML is unavailable and someone hand-edits
-    config.yml in a weird way, they get a clear error.
-    """
-    # Practically: tell the user to install PyYAML. The fallback is too risky
-    # for arbitrary YAML and we'd rather fail loudly here than silently parse
-    # something wrong.
-    raise RuntimeError(
-        "PyYAML is not installed. Install it with: pip install pyyaml"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -150,8 +137,56 @@ def gh_current_user() -> str:
 # ---------------------------------------------------------------------------
 
 
+def _default_identity() -> dict[str, Any]:
+    """Returned when identity.json is missing or corrupted."""
+    return {
+        "username": "",
+        "setup_complete": False,
+        "seen_tour": False,
+        "seen_scroll_hint": False,
+        "coc_accepted": False,
+    }
+
+
+def _default_last_check() -> dict[str, Any]:
+    """Returned when last-check.json is missing or corrupted."""
+    return {
+        "last_check_ts": None,
+        "recent_posts": [],
+        "recently_seen": [],
+        "editable_until": {},
+    }
+
+
+def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+    """Write JSON via a tmp file + os.replace so partial writes can't leave
+    the target file in a corrupted state. os.replace is atomic on POSIX and
+    on Windows when the destination exists.
+    """
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _safe_load_json(path: Path, default_factory) -> dict[str, Any]:
+    """Load a JSON state file. If it's missing OR unparseable, return the
+    default. Corruption is logged but never crashes the script: a single
+    malformed file shouldn't take WAYD out of service. The orchestrator can
+    re-derive identity by re-running setup; last-check is recreated on next
+    use.
+    """
+    if not path.exists():
+        return default_factory()
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        log_error(f"corrupted state file at {path.name}: {e}; using defaults")
+        return default_factory()
+
+
 def load_identity() -> dict[str, Any]:
-    """Load identity.json, creating a default if missing.
+    """Load identity.json, returning defaults if missing or corrupted.
 
     Schema:
       {
@@ -159,29 +194,20 @@ def load_identity() -> dict[str, Any]:
         "setup_complete": bool,
         "seen_tour": bool,
         "seen_scroll_hint": bool,
-        "seen_compose_hint": bool,
         "coc_accepted": bool
       }
     """
-    if not IDENTITY_PATH.exists():
-        return {
-            "username": "",
-            "setup_complete": False,
-            "seen_tour": False,
-            "seen_scroll_hint": False,
-            "seen_compose_hint": False,
-            "coc_accepted": False,
-        }
-    return json.loads(IDENTITY_PATH.read_text(encoding="utf-8"))
+    return _safe_load_json(IDENTITY_PATH, _default_identity)
 
 
 def save_identity(identity: dict[str, Any]) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    IDENTITY_PATH.write_text(json.dumps(identity, indent=2), encoding="utf-8")
+    _atomic_write_json(IDENTITY_PATH, identity)
 
 
 def load_last_check() -> dict[str, Any]:
-    """Load last-check.json. Schema:
+    """Load last-check.json, returning defaults if missing or corrupted.
+
+    Schema:
       {
         "last_check_ts": ISO timestamp,
         "recent_posts": [{"id": int, "ts": ISO}, ...],   # for rate limit
@@ -189,19 +215,11 @@ def load_last_check() -> dict[str, Any]:
         "editable_until": {"<post_id>": ISO}              # for /wayd edit
       }
     """
-    if not LAST_CHECK_PATH.exists():
-        return {
-            "last_check_ts": None,
-            "recent_posts": [],
-            "recently_seen": [],
-            "editable_until": {},
-        }
-    return json.loads(LAST_CHECK_PATH.read_text(encoding="utf-8"))
+    return _safe_load_json(LAST_CHECK_PATH, _default_last_check)
 
 
 def save_last_check(data: dict[str, Any]) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    LAST_CHECK_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    _atomic_write_json(LAST_CHECK_PATH, data)
 
 
 def load_blocked() -> set[str]:
@@ -340,6 +358,55 @@ def relative_time(iso_ts: str) -> str:
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Post-ID validation
+# ---------------------------------------------------------------------------
+
+
+def validate_post_id(n: int) -> bool:
+    """A post-id is a GitHub issue number, which is always >= 1. Negative or
+    zero ids could be interpolated into `gh api` URL paths and confuse
+    callers; we reject them at the entry point of every script.
+    """
+    return isinstance(n, int) and n >= 1
+
+
+# ---------------------------------------------------------------------------
+# Reaction summarization (shared by scroll.py and inbox.py)
+# ---------------------------------------------------------------------------
+
+# gh's GraphQL output uses these enum names for reaction content
+_GH_REACTION_ENUM_TO_API = {
+    "THUMBS_UP": "+1",
+    "THUMBS_DOWN": "-1",
+    "LAUGH": "laugh",
+    "HOORAY": "hooray",
+    "CONFUSED": "confused",
+    "HEART": "heart",
+    "ROCKET": "rocket",
+    "EYES": "eyes",
+}
+
+
+def summarize_reactions(groups: list[dict]) -> list[dict]:
+    """Turn gh's reactionGroups (with enum-named content) into a list of
+    {emoji, count} entries, filtered to reactions WAYD exposes in config.
+    Reactions with zero count are skipped.
+    """
+    cfg = load_config()
+    api_to_emoji = {r["api_name"].lower(): r["emoji"] for r in cfg["reactions"]}
+    out = []
+    for g in groups or []:
+        content = g.get("content", "")
+        count = g.get("users", {}).get("totalCount", 0)
+        if count == 0:
+            continue
+        api = _GH_REACTION_ENUM_TO_API.get(content)
+        if api and api in api_to_emoji:
+            out.append({"emoji": api_to_emoji[api], "count": count})
+    return out
 
 
 # ---------------------------------------------------------------------------
