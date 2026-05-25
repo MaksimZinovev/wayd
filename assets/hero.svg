@@ -116,7 +116,7 @@
   <!-- ============================================================ -->
   <!-- HEADER: title + tagline + subtagline                           -->
   <!-- ============================================================ -->
-  <g transform="translate(640, 70)" text-anchor="middle">
+  <g transform="translate(640, 95)" text-anchor="middle">
     <!-- WAYD wordmark -->
     <text class="mono" font-size="68" font-weight="800" fill="url(#titleGrad)" filter="url(#glow)" letter-spacing="5">
       WAYD
@@ -140,7 +140,7 @@
   <!-- ============================================================ -->
 
   <!-- ============ STEP 1: Post a vibe ============ -->
-  <g transform="translate(60, 200)">
+  <g transform="translate(60, 215)">
     <g class="step-1">
       <use href="#card"/>
 
@@ -184,7 +184,7 @@
   </g>
 
   <!-- ============ STEP 2: Scroll the feed ============ -->
-  <g transform="translate(450, 200)">
+  <g transform="translate(450, 215)">
     <g class="step-2">
       <use href="#card"/>
 
@@ -222,7 +222,7 @@
   </g>
 
   <!-- ============ STEP 3: React, reply ============ -->
-  <g transform="translate(840, 200)">
+  <g transform="translate(840, 215)">
     <g class="step-3">
       <use href="#card"/>
 
