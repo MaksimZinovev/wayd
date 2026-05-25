@@ -4,7 +4,7 @@
 
 # WAYD: *What Are You Doing?*
 
-You're between compilations. The tests are running. `npm install` is doing its eternal thing. You want a 30-second distraction that doesn't pull you into Twitter and steal an hour. WAYD is that distraction.
+You're working with your favorite AI coding agent and you need a coffee break? Something that doesn't pull you into Twitter and steal an hour? WAYD is that break.
 
 Type `/wayd` in your AI coding agent, share a 1000-character vibe about whatever code is haunting you today, scroll a random feed of what other developers are losing their minds over, react with an emoji, drop a one-line reply, and get back to work. Posts live as GitHub Issues under the hood, but **you'll never see it**: no issue numbers, no JSON, no `gh` commands. Just posts and people.
 
