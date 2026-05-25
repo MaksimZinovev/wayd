@@ -1,0 +1,85 @@
+# Bundles the wayd/ skill folder into a .skill file (zip) and attaches it to
+# a GitHub Release whenever a tag matching v*.*.* is pushed.
+#
+# Claude.ai users download this artifact and upload it in Settings → Skills.
+
+name: Release skill bundle
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write   # needed to create releases and upload assets
+
+jobs:
+  bundle:
+    name: Bundle and release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          # GITHUB_REF is "refs/tags/v0.1.0" — strip prefix to get "v0.1.0"
+          version="${GITHUB_REF#refs/tags/}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building WAYD skill bundle for $version"
+
+      - name: Sanity check skill structure
+        run: |
+          # The skill must have a SKILL.md and a scripts/ directory.
+          test -f wayd/SKILL.md || { echo "Missing wayd/SKILL.md"; exit 1; }
+          test -d wayd/scripts || { echo "Missing wayd/scripts/"; exit 1; }
+          test -f wayd/config.yml || { echo "Missing wayd/config.yml"; exit 1; }
+          echo "✓ Skill structure looks correct"
+
+      - name: Create bundle
+        run: |
+          # Strip per-user state (data/*) but keep the empty data/ folder
+          # via .gitkeep — the runtime will populate it on first run.
+          mkdir -p dist
+          cp -r wayd dist/wayd-staging
+
+          # Empty out data/ except .gitkeep
+          find dist/wayd-staging/data -type f ! -name ".gitkeep" -delete
+
+          # Zip into a .skill file. Convention: filename matches the skill name.
+          cd dist/wayd-staging
+          zip -r "../wayd-${{ steps.version.outputs.version }}.skill" . \
+            -x "*.pyc" "*__pycache__*" ".DS_Store"
+          cd ../..
+
+          ls -la dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: WAYD ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/wayd-${{ steps.version.outputs.version }}.skill
+          body: |
+            ## WAYD ${{ steps.version.outputs.version }}
+
+            The coffee break for programmers using AI coding agents.
+
+            ### Install
+
+            **Claude Code:**
+            ```bash
+            claude plugin marketplace add ferdinandobons/wayd
+            claude plugin install wayd@wayd
+            ```
+
+            **Claude.ai:** download the `.skill` file below and upload it in **Settings → Skills**.
+
+            **Other agents:** see the [README](https://github.com/ferdinandobons/wayd#installation) for CLI / SkillKit / submodule options.
+
+            ---
+
+            ### Auto-generated changelog

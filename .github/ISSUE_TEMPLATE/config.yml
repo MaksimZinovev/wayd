@@ -1,0 +1,13 @@
+# Disable blank issues — every issue on this repo should come from the WAYD
+# skill or from one of the templates below (feature requests, moderation).
+# This stops random users from accidentally polluting the post feed by opening
+# an empty issue via the GitHub UI.
+blank_issues_enabled: false
+
+contact_links:
+  - name: 📖 Read the README first
+    url: https://github.com/ferdinandobons/wayd#readme
+    about: WAYD posts are created via the skill, not the GitHub UI. The README explains how to install and use it.
+  - name: 🚫 Don't create posts via GitHub directly
+    url: https://github.com/ferdinandobons/wayd#installation
+    about: Install the WAYD skill in your AI coding agent and use `/wayd post` instead. Posts created via the UI won't be formatted correctly and will be deleted.
