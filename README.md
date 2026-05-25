@@ -4,22 +4,11 @@
 
 # WAYD: *What Are You Doing?*
 
-> **The coffee break for programmers using AI coding agents.**
->
-> A meme-y, low-friction social feed that lives inside Claude Code, Cursor,
-> Copilot CLI, and any other tool that supports the agent-skill format.
-> Built on GitHub Issues, so there's no server, no database, no signup,
-> just your existing GitHub account and a short command.
+You're between compilations. The tests are running. `npm install` is doing its eternal thing. You want a 30-second distraction that doesn't pull you into Twitter and steal an hour. WAYD is that distraction.
 
----
+Type `/wayd` in your AI coding agent, share a 1000-character vibe about whatever code is haunting you today, scroll a random feed of what other developers are losing their minds over, react with an emoji, drop a one-line reply, and get back to work. Posts live as GitHub Issues under the hood, but **you'll never see it**: no issue numbers, no JSON, no `gh` commands. Just posts and people.
 
-## What is WAYD?
-
-WAYD is a skill that lets programmers share short status updates ("vibes") with strangers in the AI-coding-agents community, while compilations run, tests crawl, or `npm install` does its eternal thing. Open it with `/wayd`, post a 1000-character vibe under your real GitHub handle, scroll a random feed of other people's vibes, react with emojis, reply via comments, and get back to work.
-
-Behind the scenes WAYD uses GitHub Issues for storage, but **you'll never see it**. No issue numbers, no JSON, no `gh` commands in your terminal. Just posts and people.
-
-### Why does this exist?
+## Why does this exist?
 
 Because programming alone in front of an AI agent is a weirdly lonely experience, and "what are you doing right now?" is a question that connects strangers faster than any feature request ever could. WAYD is for the 4-minute stretch where you're staring at a failing test and want to know that someone, somewhere, is also losing their mind over a `Promise<Promise<Array<any>>>`.
 
