@@ -364,12 +364,15 @@ This is the authoritative rendering spec. The compose preview, the scroll view, 
 ### Specs
 
 - **Left edge only.** Each content row starts with `│` (U+2502, light vertical) + 3 spaces + content. No right edge. This is deliberate: emoji and Unicode characters have inconsistent display widths across terminals and fonts, so trying to align a right `│` always looks wrong somewhere. Without it, the card stays clean everywhere.
-- **Separator rows**: 53 horizontal `─` characters (U+2500). Use exactly the same length on every separator so the card has a consistent silhouette.
-- **No corner characters** (`╭ ╮ ╰ ╯`). The top and bottom rows are pure `─` lines. The eye fills in the implied corners.
+- **Separator rows are adaptive, not fixed.** The separator length matches the longest content row of THIS specific card. Algorithm:
+  1. Render every content row (header, each body line, reactions row if present) including the leading `│   ` prefix.
+  2. Find the longest of those rows in character count. Treat each emoji as 2 characters (most emojis are wide-glyph in terminals; counting them as 2 is a safe overestimate that prevents the separator from being too short).
+  3. The separator is `─` repeated to match that longest-row length, with a minimum of 30 chars (so a 1-word body doesn't produce a comically short card).
+- **No corner characters** (`╭ ╮ ╰ ╯`). Top and bottom rows are pure `─` lines. The eye fills in the implied corners.
 - **Header row**: emoji + 2 spaces + vibe-slug + " · " + "@" + author + " · " + relative time. Don't pad the right side, let it end where it ends.
 - **Body rows**: wrap the post text *softly* to about 50 characters per line, breaking on whitespace. Each line is its own `│   <line>` row. Don't try to right-justify or pad.
 - **Reactions row**: only present if at least one reaction exists. Emoji summary on the left ("😂 12   ❤️ 4   🚀 1"), reply count separated by some spaces if both are present ("💬 N replies"). Both flow naturally on a single row.
-- **Visual style**: think "elegant blockquote with section separators", not "perfectly aligned ANSI box".
+- **Visual style**: think "elegant blockquote with section separators that hug the content", not "perfectly aligned ANSI box with fixed dimensions".
 
 ### Wrapping rule
 
@@ -383,28 +386,37 @@ Wrap on whitespace, never break a word. Aim for ~50 chars per line as a soft tar
 
 ### Examples
 
-**Full card (header + body + reactions):**
+**Full card (header + body + reactions)** — separator length adapts to the longest row (in this case the second body line):
 ```
-─────────────────────────────────────────────────────
+───────────────────────────────────────────────────
 │   🤡  cursed-code   ·   @alex   ·   2h ago
-─────────────────────────────────────────────────────
+───────────────────────────────────────────────────
 │   Looking at a doStuff() method that's 800 lines
 │   long, written by me 6 months ago. Who is that
 │   idiot?
-─────────────────────────────────────────────────────
+───────────────────────────────────────────────────
 │   😂 12   ❤️ 4   🚀 1            💬 7 replies
-─────────────────────────────────────────────────────
+───────────────────────────────────────────────────
 ```
 
-**Body-only card (no reactions yet, e.g. a freshly posted vibe):**
+**Body-only card (no reactions yet, e.g. a freshly posted vibe)** — separator hugs whatever is longest:
 ```
-─────────────────────────────────────────────────────
+──────────────────────────────────────────────────────
 │   🤔  existential   ·   @ferdinandobons   ·   just now
-─────────────────────────────────────────────────────
+──────────────────────────────────────────────────────
 │   8 hours a day in front of a screen, fixing bugs
 │   some dev before me shipped using an older version
 │   of Claude...
-─────────────────────────────────────────────────────
+──────────────────────────────────────────────────────
+```
+
+**Short card (a one-line vibe with no reactions)** — separator is shorter, hugs the longest of header or body:
+```
+──────────────────────────────────────────────
+│   ☕  procrastinating   ·   @sam   ·   1h ago
+──────────────────────────────────────────────
+│   14 tickets in backlog. I am here instead.
+──────────────────────────────────────────────
 ```
 
 ### Why this design
@@ -412,7 +424,7 @@ Wrap on whitespace, never break a word. Aim for ~50 chars per line as a soft tar
 - **Left edge + separator rows, no right edge**: emoji and Unicode characters have inconsistent display widths across terminals and fonts. A right edge `│` *will* misalign sooner or later, especially with emojis (some render 1 cell wide, some 2). Dropping the right edge sidesteps the entire alignment problem and the card stays clean everywhere.
 - **Light box-drawing (`─` `│`) instead of heavy (`━`)**: leaves more visual air. The card reads as a quote-like object, not a heavy fenced box.
 - **No corners (`╭ ╮ ╰ ╯`)**: too "stylized" for the lo-fi terminal vibe. The eye fills in the implied corners.
-- **53-column separator rows**: predictable, consistent silhouette across cards. Wide enough for any reasonable post text, narrow enough to read on mobile without wrapping the separator itself.
+- **Adaptive separator width**: tested against fixed-width (53 cols). Fixed felt awkward when a short post had a long separator hanging in the air. Adaptive separators that hug the longest content row keep the card visually anchored to its actual content, regardless of post length.
 
 ---
 
