@@ -196,15 +196,13 @@ Orchestrate the compose flow yourself, walking the user through these steps. The
 
 3. **Check rate limit.** Call `scripts/post.py check_rate_limit`. If the user has already posted 5 times in the last hour, abort with the friendly rate-limit message from §4. Don't proceed.
 
-4. **Show preview.** Render the post in a message above the confirmation, exactly as it will appear in scroll:
+4. **Show preview.** Render the post in a message above the confirmation, using the standard WAYD card format (see "Post card format" below). It must look exactly as it will appear when others see it in scroll, so the user can decide based on the real rendering:
    ```
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   <emoji> <vibe-slug>   ·   @<username>   ·   just now
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-   <the text>
-
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ─────────────────────────────────────────────────────
+   │   <emoji>  <vibe-slug>   ·   @<username>   ·   just now   │
+   ─────────────────────────────────────────────────────
+   │   <text, wrapped to ~47 chars per line>           │
+   ─────────────────────────────────────────────────────
    ```
    Then call the `AskUserQuestion` tool with the prompt "Publish this?" and these three options:
 
@@ -228,20 +226,18 @@ This is the core experience. Treat it as a tight loop: show a post → wait for 
 
 2. **Randomize and exclude seen.** From the cached pool, exclude post IDs the user has seen in their last 50 scroll views (stored in `wayd/data/last-check.json` under `recently_seen`). From the remaining set, pick one at random.
 
-3. **Render the post.** Use this exact format:
+3. **Render the post.** Use the standard WAYD card format (see "Post card format" below the scroll section). It looks like this:
    ```
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   <emoji> <vibe-slug>   ·   @<author>   ·   <relative-time>
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-   <post text, wrapped at ~60 cols for readability>
-
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   <reactions summary>                          💬 N replies
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ─────────────────────────────────────────────────────
+   │   <emoji>  <vibe-slug>   ·   @<author>   ·   <relative-time>   │
+   ─────────────────────────────────────────────────────
+   │   <post text, wrapped to ~47 chars per line>      │
+   ─────────────────────────────────────────────────────
+   │   <reactions>                       💬 N replies  │
+   ─────────────────────────────────────────────────────
    ```
    The relative time should be human-friendly: "2h ago", "yesterday", "3 days ago".
-   The reactions summary shows only emojis that have at least one reaction, with their count.
+   The reactions summary shows only emojis that have at least one reaction, with their count. If the post has no reactions yet, omit the reactions footer section entirely (just show the header + body, no third section).
 
 4. **First time in scroll**, prepend a one-liner above the first post: "Tip: pick an action from the buttons, or type `q` to quit anytime." Set `seen_scroll_hint: true` in identity.json.
 
@@ -344,6 +340,79 @@ Only valid within 5 minutes of the user's own post being created. The window is 
 ### `/wayd unblock @user`
 
 Remove the line from `blocked.txt`. Show: "✓ Unblocked @user. Their posts will appear again."
+
+---
+
+## Post card format
+
+This is the authoritative rendering spec. The compose preview, the scroll view, and the thread root all use it. Follow it exactly.
+
+### Anatomy
+
+```
+─────────────────────────────────────────────────────
+│   <emoji>  <vibe-slug>   ·   @<author>   ·   <relative-time>   │
+─────────────────────────────────────────────────────
+│   <body line 1, padded with 3 spaces on each side>│
+│   <body line 2>                                   │
+│   <body line 3, etc.>                             │
+─────────────────────────────────────────────────────
+│   <reactions, only if any>           💬 N replies │
+─────────────────────────────────────────────────────
+```
+
+### Specs
+
+- **Total width**: 55 columns including the `│` edges. Card itself is exactly 55 chars wide on every line.
+- **Edge characters**: `─` (U+2500, light horizontal) for top/bottom/separator rows. `│` (U+2502, light vertical) for left and right edges of content rows. No corner characters: top and bottom rows are pure `─` with no `╭ ╮ ╰ ╯`.
+- **Padding**: 3 spaces between the left `│` and the first content character. 3 spaces between the last content character and the right `│`. So usable content width is `55 - 2 - 6 = 47` characters.
+- **Header row**: emoji + 2 spaces + vibe-slug + " · " + "@" + author + " · " + relative time. Pad the right side with spaces so the closing `│` aligns at column 55.
+- **Body rows**: wrap the post text to 47 chars per line. Each wrapped line is its own `│   <line>                       │` row, padded on the right.
+- **Reactions row**: only present if at least one reaction exists. Emoji summary on the left ("😂 12   ❤️ 4   🚀 1"), reply count right-aligned ("💬 N replies"). Pad the middle with spaces.
+- **Separators**: pure `─────...─` lines between header / body / reactions and at the top and bottom. No padding spaces inside separators.
+
+### Wrapping rule
+
+Wrap on whitespace, never break a word. If a single word is longer than 47 chars (rare: a URL or a very long identifier), break it at character 47 with no hyphen.
+
+### Empty states
+
+- **Post with no reactions and no replies**: skip the third section entirely. The card has exactly 2 sections: header and body.
+- **Post with replies but no reactions**: still show the third row, with the emoji area empty: `│                                  💬 N replies │`.
+- **Post that's exactly 1 line of text**: still wrap the card to 55 cols. Body is just one row.
+
+### Examples
+
+**Full card (header + body + reactions):**
+```
+─────────────────────────────────────────────────────
+│   🤡  cursed-code   ·   @alex   ·   2h ago        │
+─────────────────────────────────────────────────────
+│   Looking at a doStuff() method that's 800 lines  │
+│   long, written by me 6 months ago. Who is that   │
+│   idiot?                                          │
+─────────────────────────────────────────────────────
+│   😂 12   ❤️ 4   🚀 1            💬 7 replies     │
+─────────────────────────────────────────────────────
+```
+
+**Body-only card (no reactions yet, e.g. a freshly posted vibe):**
+```
+─────────────────────────────────────────────────────
+│   🤔  existential   ·   @ferdinandobons   ·   just now   │
+─────────────────────────────────────────────────────
+│   8 hours a day in front of a screen, fixing     │
+│   bugs some dev before me shipped using an older │
+│   version of Claude...                           │
+─────────────────────────────────────────────────────
+```
+
+### Why this design
+
+- **4-sided "card" silhouette**: the closed contour creates Gestalt closure. The brain reads it as a single object, not three loose lines. This was a deliberate fix to the v0.1.0 layout which used only horizontal `━` lines that "dissolved" into the surrounding terminal text.
+- **Light box-drawing (`─` `│`) instead of heavy (`━`)**: leaves more visual air, which helps when several cards are stacked in a thread view.
+- **No corners (`╭ ╮ ╰ ╯`)**: tested against decorated corner variants. Corners felt too "stylized" and the user picked the cleaner intersection-free version. The card still reads as enclosed because the eye fills in the implied corners.
+- **Fixed width**: predictable on mobile (Claude.ai mobile, narrow terminals) and consistent across vibes regardless of post length.
 
 ---
 
