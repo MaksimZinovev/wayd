@@ -4,9 +4,15 @@
 
 # WAYD: *What Are You Doing?*
 
-You're working with your favorite AI coding agent and you need a coffee break? Something that doesn't pull you into Twitter and steal an hour? WAYD is that break.
+> *"8 hours a day in front of a screen, fixing tickets and bugs some dev before me shipped using an older version of Claude... meanwhile outside the sun is out, people are socializing, living to the rhythm of nature. Is this what I imagined for myself?"*
+>
+> Post by @ferdinandobons, 🤔 existential, 37m ago.
 
-Type `/wayd` in your AI coding agent, share a 1000-character vibe about whatever code is haunting you today, scroll a random feed of what other developers are losing their minds over, react with an emoji, drop a one-line reply, and get back to work. Posts live as GitHub Issues under the hood, but **you'll never see it**: no issue numbers, no JSON, no `gh` commands. Just posts and people.
+Coding with an AI agent makes you faster. It also makes you lonely. No coworker to mutter "what the hell is this" at. No Slack channel for "git push --force at 23:47, please send help." Just you and the agent, all day, every day.
+
+WAYD is a 30-second social break that lives inside your AI agent. Type `/wayd`, share a one-line vibe about your coding day, scroll a random feed of what other devs are stuck on right now, react with an emoji, drop a reply, get back to work.
+
+It runs entirely on GitHub Issues. No server, no database, no signup. Just posts and people.
 
 ## Why does this exist?
 
