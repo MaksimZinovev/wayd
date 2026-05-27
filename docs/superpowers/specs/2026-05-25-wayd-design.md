@@ -10,7 +10,7 @@
 
 **WAYD** (*What Are You Doing?*) is a skill that turns GitHub Issues into a lightweight social platform for programmers. Users install the skill in their AI coding agent of choice: **Claude Code, Cursor, Copilot CLI, Codex, or any tool that supports the agent-skill format**: then post short status updates ("vibes"), scroll a random feed of other people's posts, react with emojis, and reply via comments. They never touch the GitHub UI.
 
-The product is positioned as **"the coffee break for programmers using AI coding agents"**: a r/ProgrammerHumor-style social feed accessible during compilations, test runs, or moments of frustration. It is intentionally lo-fi (text-only, terminal-rendered) and emotionally honest (self-deprecation, cursed code, existential dread, hot takes).
+The product is positioned as **"the scroll break you take while your agent works, without leaving your console"**: a r/ProgrammerHumor-style social feed you dip into while the agent runs, compiles, or tests, then resume your task instead of falling into a generic feed that pulls you out of flow. It is intentionally lo-fi (text-only, terminal-rendered) and emotionally honest (self-deprecation, cursed code, existential dread, hot takes).
 
 Although WAYD is agent-agnostic, **Claude Code is the primary target environment** (richest plugin/skill support, largest current user base in the agentic-coding space). Other agents are supported through the universal SkillKit / `npx skills` install channels, see §6.
 

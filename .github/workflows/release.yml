@@ -74,7 +74,7 @@ jobs:
           body: |
             ## WAYD ${{ steps.version.outputs.version }}
 
-            The coffee break for programmers using AI coding agents.
+            The scroll break you take while your agent works, without leaving your console.
 
             ### Install
 

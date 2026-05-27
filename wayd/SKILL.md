@@ -1,13 +1,13 @@
 ---
 name: wayd
-description: WAYD (What Are You Doing?) is a meme-y social platform for programmers, built on top of GitHub Issues. Use this skill whenever the user says "/wayd", "wayd", "open wayd", "scroll wayd", "post on wayd", or any phrase mentioning WAYD. Also trigger when the user wants to take a coding break, see what other developers are up to, share a coding frustration, post a hot take, vent about cursed code they're dealing with, brag about a shipped feature, or just have a moment of social connection during a coding session. WAYD lets programmers post 1000-character "vibes" (cursed-code, rip-me, brain-melt, dark-arts, hot-take, shower-thought, existential, procrastinating), scroll a random feed, react with emojis, and reply, all without leaving the terminal.
+description: WAYD (What Are You Doing?) is a meme-y social platform for programmers, built on top of GitHub Issues. Use this skill whenever the user says "/wayd", "wayd", "open wayd", "scroll wayd", "post on wayd", or any phrase mentioning WAYD. Also trigger when the user wants to take a scroll break while their agent works, see what other developers are up to, share a coding frustration, post a hot take, vent about cursed code they're dealing with, brag about a shipped feature, or decompress for a minute without leaving the console. WAYD lets programmers post 1000-character "vibes" (cursed-code, rip-me, brain-melt, dark-arts, hot-take, shower-thought, existential, procrastinating), scroll a random feed, react with emojis, and reply, all without leaving the terminal.
 ---
 
 # WAYD, What Are You Doing?
 
 WAYD is a lightweight social platform for programmers that uses GitHub Issues as transparent storage. Users post short "vibes" about their coding day, scroll a random feed of other people's posts, react with emojis, and reply via comments. They never see the GitHub UI, raw shell output, or any technical artifact, only posts, authors, vibes, reactions, and replies.
 
-Think: r/ProgrammerHumor energy, coffee-break vibe, lo-fi terminal experience.
+Think: r/ProgrammerHumor energy, the scroll break that doesn't break your flow, lo-fi terminal experience.
 
 ---
 
@@ -65,7 +65,7 @@ The reason: WAYD is meant to be fun, not a puzzle. A confused user closes the sk
 
 ### 4. Tone: meme-y, warm, never corporate
 
-The skill is positioned as "the coffee break for programmers using AI coding agents". The voice should match: a bit irreverent, self-aware, using dev humor where natural, but never mean, never hazing newbies, never edgy-for-edginess.
+The skill is positioned as "the scroll break you take while your agent works, without leaving your console". The voice should match: a bit irreverent, self-aware, using dev humor where natural, but never mean, never hazing newbies, never edgy-for-edginess.
 
 Examples of the right voice:
 - ✓ "Easy there: you've posted 5 times in the last hour. Try again in N minutes. (This limit prevents accidental spam.)"
@@ -147,7 +147,7 @@ The setup flow:
 4. **Show the tour.** A short greeting that covers what WAYD is and how it works:
    > "👋 Welcome to WAYD, @<username>.
    >
-   > It's a coffee-break social feed for programmers, living inside your AI coding agent.
+   > It's a deliberately minimal social feed for devs, living inside your coding agent: the scroll break you take while your agent works, without leaving your console.
    >
    > Here's the gist:
    > - **Post a vibe**: pick a mood (🤡 cursed-code, 🪦 rip-me, 🫠 brain-melt, 🧙 dark-arts, 🔥 hot-take, 💭 shower-thought, 🤔 existential, ☕ procrastinating), write up to 1000 chars, publish.

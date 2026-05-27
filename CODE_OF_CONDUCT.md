@@ -47,4 +47,4 @@ By using WAYD (posting, commenting, reacting), you agree to follow this Code of 
 
 ---
 
-*The goal is a place that feels like a kind, weird, slightly chaotic coffee break: not a content site, not a battlefield. Help keep it that way.*
+*The goal is a place that feels like a kind, weird, slightly chaotic 60-second break between tasks: not a content site, not a battlefield. Help keep it that way.*
