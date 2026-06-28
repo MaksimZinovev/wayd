@@ -3,7 +3,7 @@
 
 # The target GitHub repo where issues live (= posts).
 # Format: "owner/repo". Change this if you fork WAYD to your own host repo.
-repo: "ferdinandobons/wayd"
+repo: "MaksimZinovev/wayd"
 
 # The 8 vibes. Order matters: it's the order shown in the compose menu.
 # slug    = used in labels (vibe:<slug>) and in the body marker
@@ -12,31 +12,32 @@ repo: "ferdinandobons/wayd"
 vibes:
   - slug: "cursed-code"
     emoji: "🤡"
-    blurb: 'this code is an abomination'
+    blurb: "this code is an abomination"
   - slug: "rip-me"
     emoji: "🪦"
-    blurb: 'something died, possibly me'
+    blurb: "something died, possibly me"
   - slug: "brain-melt"
     emoji: "🫠"
-    blurb: 'my brain is leaking'
+    blurb: "my brain is leaking"
   - slug: "dark-arts"
     emoji: "🧙"
-    blurb: 'I solved it with evil'
+    blurb: "I solved it with evil"
   - slug: "hot-take"
     emoji: "🔥"
-    blurb: 'opinion that will start a war'
+    blurb: "opinion that will start a war"
   - slug: "shower-thought"
     emoji: "💭"
-    blurb: 'random thought'
+    blurb: "random thought"
   - slug: "existential"
     emoji: "🤔"
-    blurb: 'is this the life I wanted?'
+    blurb: "is this the life I wanted?"
   - slug: "procrastinating"
     emoji: "☕"
-    blurb: 'I should be working'
+    blurb: "I should be working"
 
 # Reactions WAYD exposes (subset of what GitHub supports on issues).
-# GitHub API names: "+1", "-1", "laugh", "hooray", "confused", "heart", "rocket", "eyes"
+# GitHub API names:
+#   "+1", "-1", "laugh", "hooray", "confused", "heart", "rocket", "eyes"
 # We map them to human emojis for display.
 reactions:
   - emoji: "👍"
@@ -52,16 +53,17 @@ reactions:
   - emoji: "👀"
     api_name: "eyes"
   - emoji: "😭"
-    api_name: "confused"  # GitHub doesn't have a "sad" reaction; "confused" is closest
+    # GitHub doesn't have a "sad" reaction; "confused" is closest
+    api_name: "confused"
 
 # Limits
 limits:
-  max_chars: 1000          # Post body character limit
-  posts_per_hour: 5        # Per-user, client-side rate limit
-  scroll_pool_size: 200    # How many recent posts to consider in scroll random
-  recently_seen_size: 50   # How many post IDs to remember as "seen" per user
-  scroll_cache_ttl_sec: 300  # Refresh the scroll pool every 5 min
-  edit_window_sec: 300     # Posts editable for 5 min after creation
+  max_chars: 1000 # Post body character limit
+  posts_per_hour: 5 # Per-user, client-side rate limit
+  scroll_pool_size: 200 # How many recent posts to consider in scroll random
+  recently_seen_size: 50 # How many post IDs to remember as "seen" per user
+  scroll_cache_ttl_sec: 300 # Refresh the scroll pool every 5 min
+  edit_window_sec: 300 # Posts editable for 5 min after creation
 
 # Body marker: present in every WAYD post body so we can distinguish them
 # from any other issues that exist in the repo, and so we can parse vibe back.
